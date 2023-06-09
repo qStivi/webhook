@@ -28,6 +28,12 @@ public class WebhookServer {
 
             // Start the server
             Spark.awaitInitialization();
+            Spark.exception(Exception.class, (exception, request, response) -> {
+                logger.error("Exception occurred", exception);
+                response.status(500);
+                response.body("Internal server error");
+                Spark.halt();
+            });
             logger.info("Server started on port 8000");
         } catch (Exception e) {
             logger.error("Server failed to start", e);
