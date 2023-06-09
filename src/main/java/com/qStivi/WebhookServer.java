@@ -20,14 +20,18 @@ public class WebhookServer {
     private static final Logger logger = LoggerFactory.getLogger(WebhookServer.class);
 
     public static void main(String[] args) {
-        Spark.port(8000);
+        try {
+            Spark.port(8000);
 
-        // Set up the route to handle the webhook
-        Spark.post("/webhook", new WebhookHandler());
+            // Set up the route to handle the webhook
+            Spark.post("/webhook", new WebhookHandler());
 
-        // Start the server
-        Spark.awaitInitialization();
-        logger.info("Server started on port 8000");
+            // Start the server
+            Spark.awaitInitialization();
+            logger.info("Server started on port 8000");
+        } catch (Exception e) {
+            logger.error("Server failed to start", e);
+        }
     }
 
     public static class WebhookHandler implements Route {
@@ -64,7 +68,7 @@ public class WebhookServer {
             }
         }
 
-        private boolean isValidSignature(String requestBody, String signature, String secretToken) {
+        private boolean isValidSignature(String requestBody, String signature, String secretToken) throws Exception {
             if (signature == null || !signature.startsWith("sha256=")) {
                 return false;
             }
@@ -87,7 +91,7 @@ public class WebhookServer {
             }
         }
 
-        private String bytesToHex(byte[] bytes) {
+        private String bytesToHex(byte[] bytes) throws Exception {
             StringBuilder result = new StringBuilder();
             for (byte b : bytes) {
                 result.append(String.format("%02x", b));
@@ -95,7 +99,7 @@ public class WebhookServer {
             return result.toString();
         }
 
-        private boolean secureCompare(String a, String b) {
+        private boolean secureCompare(String a, String b) throws Exception {
             if (a.length() != b.length()) {
                 return false;
             }
