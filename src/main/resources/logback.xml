@@ -10,6 +10,18 @@
         </encoder>
     </appender>
 
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>webhook.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>
+                <!-- @formatter:off -->
+                %d{HH:mm:ss.SSS} %boldCyan(%-28.-28logger{0}) %red(%10.10X{jda.shard}) %boldGreen(%-15.-15M) %highlight(%-6level) %msg%n
+                <!-- @formatter:on -->
+            </pattern>
+        </encoder>
+    </appender>
+
     <root level="debug">
         <appender-ref ref="STDOUT"/>
     </root>
