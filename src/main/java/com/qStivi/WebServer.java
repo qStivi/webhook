@@ -33,6 +33,7 @@ public class WebServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            logger.info("Received a webhook request");
             if ("POST".equals(exchange.getRequestMethod())) {
                 // Read the request body
                 String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
