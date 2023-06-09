@@ -1,56 +1,44 @@
 package com.qStivi;
 
-import com.sun.tools.javac.Main;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spark.Request;
-import spark.Response;
-import spark.Route;
-import spark.Spark;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
-public class WebhookServer {
+public class WebServer {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebServer.class);
+
+    private static final int PORT = 8000;
     private static final String SECRET_TOKEN = PropertiesLoader.getInstance().getAPIKey("secretToken");
-    private static final Logger logger = LoggerFactory.getLogger(WebhookServer.class);
 
-    public static void main(String[] args) {
-        try {
-            Spark.port(8000);
-            Spark.webSocketIdleTimeoutMillis(0);
-
-            // Set up the route to handle the webhook
-            Spark.post("/webhook", new WebhookHandler());
-
-            // Start the server
-            Spark.awaitInitialization();
-            Spark.exception(Exception.class, (exception, request, response) -> {
-                logger.error("Exception occurred", exception);
-                response.status(500);
-                response.body("Internal server error");
-                Spark.halt();
-            });
-            logger.info("Server started on port 8000");
-        } catch (Exception e) {
-            logger.error("Server failed to start", e);
-        }
+    public static void main(String[] args) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+        server.createContext("/webhook", new WebhookHandler());
+        server.start();
+        logger.info("Server started on port " + PORT);
     }
 
-    public static class WebhookHandler implements Route {
+    public static class WebhookHandler implements HttpHandler {
 
         @Override
-        public Object handle(Request request, Response response) throws Exception {
-            if ("POST".equals(request.requestMethod())) {
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
                 // Read the request body
-                String requestBody = request.body();
+                String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
                 // Verify the secret token
-                String signature = request.headers("x-hub-signature-256");
+                String signature = exchange.getRequestHeaders().getFirst("x-hub-signature-256");
                 if (isValidSignature(requestBody, signature, SECRET_TOKEN)) {
                     // Secret token is valid, process the request body
                     logger.info("Request body: " + requestBody);
@@ -58,24 +46,30 @@ public class WebhookServer {
                     // Further processing of the request body...
 
                     // Send a response
-                    response.status(200);
-                    return "Webhook received";
+                    String response = "Webhook received";
+                    exchange.sendResponseHeaders(200, response.getBytes(StandardCharsets.UTF_8).length);
+                    OutputStream responseBody = exchange.getResponseBody();
+                    responseBody.write(response.getBytes(StandardCharsets.UTF_8));
+                    responseBody.close();
                 } else {
                     // Invalid secret token, handle accordingly
-                    logger.info("Invalid secret token");
+                    logger.error("Invalid secret token");
 
                     // Send an error response
-                    response.status(401);
-                    return "Unauthorized";
+                    String response = "Unauthorized";
+                    exchange.sendResponseHeaders(401, response.getBytes(StandardCharsets.UTF_8).length);
+                    OutputStream responseBody = exchange.getResponseBody();
+                    responseBody.write(response.getBytes(StandardCharsets.UTF_8));
+                    responseBody.close();
                 }
             } else {
                 // Handle other HTTP methods if needed
-                response.status(405);
-                return "Method Not Allowed";
+                exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+                exchange.close();
             }
         }
 
-        private boolean isValidSignature(String requestBody, String signature, String secretToken) throws Exception {
+        private boolean isValidSignature(String requestBody, String signature, String secretToken) {
             if (signature == null || !signature.startsWith("sha256=")) {
                 return false;
             }
@@ -98,7 +92,7 @@ public class WebhookServer {
             }
         }
 
-        private String bytesToHex(byte[] bytes) throws Exception {
+        private String bytesToHex(byte[] bytes) {
             StringBuilder result = new StringBuilder();
             for (byte b : bytes) {
                 result.append(String.format("%02x", b));
@@ -106,7 +100,7 @@ public class WebhookServer {
             return result.toString();
         }
 
-        private boolean secureCompare(String a, String b) throws Exception {
+        private boolean secureCompare(String a, String b) {
             if (a.length() != b.length()) {
                 return false;
             }
