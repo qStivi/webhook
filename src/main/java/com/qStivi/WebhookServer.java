@@ -1,5 +1,8 @@
 package com.qStivi;
 
+import com.sun.tools.javac.Main;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import spark.Request;
 import spark.Response;
 import spark.Route;
@@ -14,15 +17,17 @@ import java.security.NoSuchAlgorithmException;
 public class WebhookServer {
 
     private static final String SECRET_TOKEN = PropertiesLoader.getInstance().getAPIKey("secretToken");
+    private static final Logger logger = LoggerFactory.getLogger(WebhookServer.class);
 
     public static void main(String[] args) {
+        Spark.port(8000);
+
         // Set up the route to handle the webhook
         Spark.post("/webhook", new WebhookHandler());
 
         // Start the server
-        Spark.port(8000);
         Spark.awaitInitialization();
-        System.out.println("Server started on port 8000");
+        logger.info("Server started on port 8000");
     }
 
     public static class WebhookHandler implements Route {
@@ -37,7 +42,7 @@ public class WebhookServer {
                 String signature = request.headers("x-hub-signature-256");
                 if (isValidSignature(requestBody, signature, SECRET_TOKEN)) {
                     // Secret token is valid, process the request body
-                    System.out.println("Request body: " + requestBody);
+                    logger.info("Request body: " + requestBody);
 
                     // Further processing of the request body...
 
@@ -46,7 +51,7 @@ public class WebhookServer {
                     return "Webhook received";
                 } else {
                     // Invalid secret token, handle accordingly
-                    System.out.println("Invalid secret token");
+                    logger.info("Invalid secret token");
 
                     // Send an error response
                     response.status(401);
