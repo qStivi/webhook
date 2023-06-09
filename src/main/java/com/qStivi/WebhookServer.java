@@ -22,6 +22,7 @@ public class WebhookServer {
     public static void main(String[] args) {
         try {
             Spark.port(8000);
+            Spark.webSocketIdleTimeoutMillis(0);
 
             // Set up the route to handle the webhook
             Spark.post("/webhook", new WebhookHandler());
